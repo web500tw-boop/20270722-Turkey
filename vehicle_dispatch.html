@@ -1,0 +1,684 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>車輛調度管理系統 - MARS-019</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Microsoft JhengHei','Segoe UI',sans-serif;background:#0f1923;color:#e0e0e0;min-height:100vh}
+.header{background:linear-gradient(135deg,#1a2a3a,#0d2137);padding:16px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1e90ff}
+.header h1{font-size:22px;color:#fff;letter-spacing:2px}
+.header h1 span{color:#1e90ff}
+.header-actions{display:flex;gap:10px;align-items:center}
+.btn{padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary{background:#1e90ff;color:#fff}.btn-primary:hover{background:#1873cc}
+.btn-success{background:#28a745;color:#fff}.btn-success:hover{background:#218838}
+.btn-warning{background:#ffc107;color:#333}.btn-warning:hover{background:#e0a800}
+.btn-danger{background:#dc3545;color:#fff}.btn-danger:hover{background:#c82333}
+.btn-outline{background:transparent;color:#1e90ff;border:1px solid #1e90ff}.btn-outline:hover{background:#1e90ff;color:#fff}
+
+.dashboard{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;padding:16px 24px}
+.stat-card{background:linear-gradient(135deg,#1a2a3a,#152232);border-radius:10px;padding:18px 14px;text-align:center;border:1px solid #2a3a4a;position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.stat-card.total::before{background:#1e90ff}
+.stat-card.active::before{background:#28a745}
+.stat-card.standby::before{background:#007bff}
+.stat-card.repair::before{background:#dc3545}
+.stat-card.mileage::before{background:#ffc107}
+.stat-card .number{font-size:36px;font-weight:800;line-height:1.1}
+.stat-card.total .number{color:#1e90ff}
+.stat-card.active .number{color:#28a745}
+.stat-card.standby .number{color:#007bff}
+.stat-card.repair .number{color:#dc3545}
+.stat-card.mileage .number{color:#ffc107;font-size:28px}
+.stat-card .label{font-size:12px;color:#8899aa;margin-top:4px}
+
+.main{padding:0 24px 24px;display:grid;grid-template-columns:1fr;gap:16px}
+.section{background:#1a2a3a;border-radius:10px;border:1px solid #2a3a4a;overflow:hidden}
+.section-header{padding:14px 18px;border-bottom:1px solid #2a3a4a;display:flex;align-items:center;justify-content:space-between}
+.section-header h2{font-size:15px;color:#fff;display:flex;align-items:center;gap:8px}
+.section-header h2 .icon{font-size:18px}
+.section-body{padding:16px 18px}
+
+.tabs{display:flex;gap:4px;margin-bottom:14px}
+.tab{padding:7px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;background:#152232;color:#8899aa;border:1px solid #2a3a4a;transition:all .2s}
+.tab.active{background:#1e90ff;color:#fff;border-color:#1e90ff}
+.tab:hover:not(.active){background:#1e3a5a;color:#fff}
+
+.vehicle-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.vehicle-card{background:#152232;border-radius:8px;padding:14px;border:1px solid #2a3a4a;cursor:pointer;transition:all .2s;position:relative}
+.vehicle-card:hover{border-color:#1e90ff;transform:translateY(-2px)}
+.vehicle-card .v-id{font-size:16px;font-weight:800;color:#fff;margin-bottom:6px}
+.vehicle-card .v-task{font-size:12px;color:#8899aa;margin-bottom:8px}
+.vehicle-card .v-status{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.status-active{background:rgba(40,167,69,.2);color:#28a745;border:1px solid rgba(40,167,69,.4)}
+.status-standby{background:rgba(0,123,255,.2);color:#007bff;border:1px solid rgba(0,123,255,.4)}
+.status-depot{background:rgba(108,117,125,.2);color:#adb5bd;border:1px solid rgba(108,117,125,.4)}
+.status-rest{background:rgba(255,193,7,.2);color:#ffc107;border:1px solid rgba(255,193,7,.4)}
+.status-repair{background:rgba(220,53,69,.2);color:#dc3545;border:1px solid rgba(220,53,69,.4)}
+.vehicle-card .v-mileage{font-size:11px;color:#6c757d;margin-top:6px}
+.vehicle-card .v-mileage strong{color:#ffc107}
+.vehicle-card.incomplete{border-color:#dc3545 !important}
+.vehicle-card.incomplete::after{content:'!';position:absolute;top:6px;right:8px;background:#dc3545;color:#fff;width:18px;height:18px;border-radius:50%;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+
+.status-dropdown{position:absolute;bottom:0;left:0;right:0;background:#1a2a3a;border-radius:0 0 8px 8px;padding:8px;display:none;border-top:1px solid #2a3a4a;z-index:10}
+.vehicle-card:hover .status-dropdown{display:flex;gap:4px;flex-wrap:wrap}
+.status-btn{padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid #2a3a4a;background:#152232;color:#adb5bd;transition:all .15s}
+.status-btn:hover{background:#1e90ff;color:#fff;border-color:#1e90ff}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{background:#152232;padding:10px 12px;text-align:left;color:#8899aa;font-weight:700;border-bottom:2px solid #2a3a4a;white-space:nowrap;cursor:pointer;user-select:none}
+thead th:hover{color:#1e90ff}
+tbody td{padding:9px 12px;border-bottom:1px solid #1e2d3d}
+tbody tr:hover{background:#1e2d3d}
+tbody tr.incomplete{color:#ff6b6b}
+tbody tr.incomplete td{color:#ff6b6b}
+tbody tr.incomplete td::before{content:''}
+
+.chart-container{display:flex;align-items:flex-end;gap:6px;height:180px;padding:10px 0}
+.chart-bar{flex:1;border-radius:4px 4px 0 0;position:relative;transition:all .3s;min-width:20px;cursor:pointer}
+.chart-bar:hover{opacity:.8}
+.chart-bar .bar-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:9px;color:#8899aa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60px}
+.chart-bar .bar-value{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#fff;font-weight:700;white-space:nowrap}
+
+.upload-zone{border:2px dashed #2a3a4a;border-radius:10px;padding:40px;text-align:center;cursor:pointer;transition:all .3s}
+.upload-zone:hover{border-color:#1e90ff;background:rgba(30,144,255,.05)}
+.upload-zone .icon{font-size:40px;margin-bottom:10px}
+.upload-zone p{color:#8899aa;font-size:13px}
+.upload-zone input{display:none}
+
+.legend{display:flex;gap:14px;margin-top:10px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#8899aa}
+.legend-dot{width:10px;height:10px;border-radius:50%}
+
+.filter-bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.filter-bar input,.filter-bar select{background:#152232;border:1px solid #2a3a4a;color:#e0e0e0;padding:6px 12px;border-radius:6px;font-size:12px}
+.filter-bar input:focus,.filter-bar select:focus{outline:none;border-color:#1e90ff}
+
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
+.modal-overlay.show{display:flex}
+.modal{background:#1a2a3a;border-radius:12px;border:1px solid #2a3a4a;width:500px;max-width:90vw;max-height:80vh;overflow-y:auto}
+.modal-header{padding:16px 20px;border-bottom:1px solid #2a3a4a;display:flex;align-items:center;justify-content:space-between}
+.modal-header h3{color:#fff;font-size:16px}
+.modal-close{background:none;border:none;color:#8899aa;font-size:20px;cursor:pointer}
+.modal-close:hover{color:#fff}
+.modal-body{padding:20px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;color:#8899aa;margin-bottom:4px;font-weight:600}
+.form-group input,.form-group select{width:100%;background:#152232;border:1px solid #2a3a4a;color:#e0e0e0;padding:8px 12px;border-radius:6px;font-size:13px}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#1e90ff}
+.modal-footer{padding:14px 20px;border-top:1px solid #2a3a4a;display:flex;gap:8px;justify-content:flex-end}
+
+.tag-incomplete{display:inline-block;background:rgba(220,53,69,.2);color:#ff6b6b;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;margin-left:6px}
+.toast{position:fixed;bottom:20px;right:20px;background:#28a745;color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:200;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+@media print{
+body{background:#fff;color:#000}
+.header{background:#fff;border-bottom:2px solid #000}
+.header h1{color:#000}
+.stat-card{background:#f8f9fa;border:1px solid #dee2e6}
+.stat-card .number{color:#000 !important}
+.section{border:1px solid #dee2e6}
+thead th{background:#f8f9fa;color:#333}
+tbody tr.incomplete{color:#dc3545}
+}
+
+@media(max-width:900px){
+.dashboard{grid-template-columns:repeat(3,1fr)}
+.vehicle-grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr))}
+}
+@media(max-width:600px){
+.dashboard{grid-template-columns:repeat(2,1fr)}
+.header{flex-direction:column;gap:10px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1><span>&#9673;</span> 車輛調度管理系統 <span style="font-size:12px;color:#8899aa;font-weight:400">MARS-019</span></h1>
+  <div class="header-actions">
+    <span id="recordCount" style="font-size:12px;color:#8899aa;margin-right:10px"></span>
+    <label class="btn btn-primary" style="cursor:pointer">
+      &#128228; 匯入 CSV
+      <input type="file" id="fileInput" accept=".csv" style="display:none">
+    </label>
+    <button class="btn btn-outline" onclick="exportCSV()">&#128229; 匯出 CSV</button>
+    <button class="btn btn-outline" onclick="window.print()">&#128424; 列印</button>
+    <button class="btn btn-warning" onclick="resetData()">&#9654; 重置資料</button>
+  </div>
+</div>
+
+<div class="dashboard" id="dashboard">
+  <div class="stat-card total"><div class="number" id="statTotal">0</div><div class="label">總車輛數</div></div>
+  <div class="stat-card active"><div class="number" id="statActive">0</div><div class="label">出車中</div></div>
+  <div class="stat-card standby"><div class="number" id="statStandby">0</div><div class="label">待命</div></div>
+  <div class="stat-card repair"><div class="number" id="statRepair">0</div><div class="label">維修</div></div>
+  <div class="stat-card mileage"><div class="number" id="statMileage">0</div><div class="label">總里程 (km)</div></div>
+</div>
+
+<div class="main">
+  <div class="section">
+    <div class="section-header">
+      <h2><span class="icon">&#128663;</span> 車輛狀態看板</h2>
+      <div class="filter-bar">
+        <input type="text" id="searchVehicle" placeholder="搜尋車輛..." oninput="renderVehicles()">
+        <select id="filterStatus" onchange="renderVehicles()">
+          <option value="all">全部狀態</option>
+          <option value="active">出車中</option>
+          <option value="standby">待命</option>
+          <option value="depot">在廠</option>
+          <option value="rest">休息</option>
+          <option value="repair">維修</option>
+        </select>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#28a745"></div>出車中</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#007bff"></div>待命</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#6c757d"></div>在廠</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ffc107"></div>休息</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#dc3545"></div>維修</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ff6b6b;border:2px dashed #ff6b6b"></div>資料不完整</div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="vehicle-grid" id="vehicleGrid">
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+          <div class="icon">&#128196;</div>
+          <p>點擊或拖曳 CSV 檔案匯入額外資料<br><small>支援 MARS-019 格式</small></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h2><span class="icon">&#128203;</span> 派遣紀錄</h2>
+      <button class="btn btn-primary" onclick="openAddModal()">+ 新增紀錄</button>
+    </div>
+    <div class="section-body" style="overflow-x:auto">
+      <table id="recordTable">
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)">日期 &#8693;</th>
+            <th onclick="sortTable(1)">車輛 &#8693;</th>
+            <th onclick="sortTable(2)">任務 &#8693;</th>
+            <th onclick="sortTable(3)">出發時間 &#8693;</th>
+            <th onclick="sortTable(4)">返回時間 &#8693;</th>
+            <th onclick="sortTable(5)">里程 &#8693;</th>
+            <th>狀態</th>
+          </tr>
+        </thead>
+        <tbody id="recordBody">
+          <tr><td colspan="7" style="text-align:center;color:#8899aa;padding:30px">資料已自動載入，可直接操作</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <h2><span class="icon">&#128200;</span> 里程統計</h2>
+      <div class="tabs">
+        <div class="tab active" onclick="switchChart('vehicle',this)">依車輛</div>
+        <div class="tab" onclick="switchChart('task',this)">依任務</div>
+        <div class="tab" onclick="switchChart('month',this)">依月份</div>
+      </div>
+    </div>
+    <div class="section-body">
+      <div class="chart-container" id="chartArea" style="padding-bottom:24px"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>新增派遣紀錄</h3>
+      <button class="modal-close" onclick="closeAddModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label>日期</label><input type="date" id="fDate"></div>
+      <div class="form-group"><label>車輛</label><input type="text" id="fVehicle" placeholder="例: M-2000"></div>
+      <div class="form-group"><label>任務</label>
+        <select id="fTask"><option>地表採樣</option><option>物資盤點</option><option>設備巡檢</option><option>通訊校準</option><option>溫室維護</option><option>艙外維修</option></select>
+      </div>
+      <div class="form-group"><label>出發時間</label>
+        <select id="fDepart"><option>00:00-06:00</option><option>06:00-12:00</option><option>12:00-18:00</option><option>18:00-00:00</option></select>
+      </div>
+      <div class="form-group"><label>返回時間</label>
+        <select id="fReturn"><option>00:00-06:00</option><option>06:00-12:00</option><option>12:00-18:00</option><option>18:00-00:00</option></select>
+      </div>
+      <div class="form-group"><label>里程 (km)</label><input type="number" id="fMileage" min="0"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddModal()">取消</button>
+      <button class="btn btn-primary" onclick="addRecord()">確認新增</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div style="text-align:center;padding:20px;color:#555;font-size:11px">
+  MARS-019 車輛調度管理系統 v1.0 | 資料已整合 | 129 筆派遣紀錄
+</div>
+
+<script>
+let records=[];
+let vehicles={};
+let chartMode='vehicle';
+let sortCol=-1,sortAsc=true;
+
+const fileInput=document.getElementById('fileInput');
+fileInput.addEventListener('change',e=>{
+  const file=e.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    parseCSV(ev.target.result);
+    fileInput.value='';
+    showToast('CSV 已匯入 (' + records.length + ' 筆)');
+  };
+  reader.readAsText(file,'UTF-8');
+});
+
+function parseCSV(text){
+  const lines=text.trim().split('\n');
+  if(lines.length<2)return;
+  records=[];
+  for(let i=1;i<lines.length;i++){
+    const cols=lines[i].split(',');
+    if(cols.length<6)continue;
+    const r={
+      date:cols[0].trim(),
+      vehicle:cols[1].trim(),
+      task:cols[2].trim(),
+      depart:cols[3].trim(),
+      ret:cols[4].trim(),
+      mileage:cols[5].trim(),
+      incomplete:false,
+      missingFields:[]
+    };
+    if(!r.date){r.incomplete=true;r.missingFields.push('日期')}
+    if(!r.vehicle){r.incomplete=true;r.missingFields.push('車輛')}
+    if(!r.task){r.incomplete=true;r.missingFields.push('任務')}
+    if(!r.depart){r.incomplete=true;r.missingFields.push('出發時間')}
+    if(!r.ret){r.incomplete=true;r.missingFields.push('返回時間')}
+    if(!r.mileage){r.incomplete=true;r.missingFields.push('里程')}
+    records.push(r);
+  }
+  buildVehicles();
+  renderAll();
+}
+
+function buildVehicles(){
+  vehicles={};
+  const statuses=['standby','standby','standby','active','active','depot','rest','repair'];
+  records.forEach(r=>{
+    if(!r.vehicle)return;
+    if(!vehicles[r.vehicle]){
+      vehicles[r.vehicle]={
+        id:r.vehicle,
+        task:r.task||'-',
+        status:r.incomplete?'repair':statuses[Math.floor(Math.random()*statuses.length)],
+        totalMileage:0,
+        incomplete:r.incomplete,
+        missingFields:[...r.missingFields]
+      };
+    }
+    const m=parseFloat(r.mileage);
+    if(!isNaN(m))vehicles[r.vehicle].totalMileage+=m;
+    if(r.incomplete&&!vehicles[r.vehicle].incomplete){
+      vehicles[r.vehicle].incomplete=true;
+      vehicles[r.vehicle].status='repair';
+      vehicles[r.vehicle].missingFields=[...new Set([...vehicles[r.vehicle].missingFields,...r.missingFields])];
+    }
+  });
+}
+
+function renderAll(){
+  renderDashboard();
+  renderVehicles();
+  renderTable();
+  renderChart();
+}
+
+function renderDashboard(){
+  const vList=Object.values(vehicles);
+  document.getElementById('statTotal').textContent=vList.length;
+  document.getElementById('statActive').textContent=vList.filter(v=>v.status==='active').length;
+  document.getElementById('statStandby').textContent=vList.filter(v=>v.status==='standby'||v.status==='depot'||v.status==='rest').length;
+  document.getElementById('statRepair').textContent=vList.filter(v=>v.status==='repair').length;
+  let totalM=0;
+  records.forEach(r=>{const m=parseFloat(r.mileage);if(!isNaN(m))totalM+=m});
+  document.getElementById('statMileage').textContent=totalM.toLocaleString();
+  document.getElementById('recordCount').textContent=records.length + ' 筆派遣紀錄';
+}
+
+function renderVehicles(){
+  const grid=document.getElementById('vehicleGrid');
+  const search=(document.getElementById('searchVehicle').value||'').toLowerCase();
+  const filter=document.getElementById('filterStatus').value;
+  let vList=Object.values(vehicles).filter(v=>{
+    if(search&&!v.id.toLowerCase().includes(search))return false;
+    if(filter!=='all'&&v.status!==filter)return false;
+    return true;
+  });
+  if(vList.length===0){
+    grid.innerHTML='<div class="upload-zone" onclick="document.getElementById(\'fileInput\').click()"><div class="icon">&#128196;</div><p>點擊或拖曳 CSV 檔案匯入額外資料<br><small>支援 MARS-019 格式</small></p></div>';
+    return;
+  }
+  const statusMap={active:'出車中',standby:'待命',depot:'在廠',rest:'休息',repair:'維修'};
+  const statusClass={active:'status-active',standby:'status-standby',depot:'status-depot',rest:'status-rest',repair:'status-repair'};
+  grid.innerHTML=vList.map(v=>`
+    <div class="vehicle-card ${v.incomplete?'incomplete':''}" data-vid="${v.id}">
+      <div class="v-id">${v.id}${v.incomplete?'<span class="tag-incomplete">'+v.missingFields.join(', ')+'</span>':''}</div>
+      <div class="v-task">${v.task}</div>
+      <div class="v-status ${statusClass[v.status]}">${statusMap[v.status]}</div>
+      <div class="v-mileage">累計 <strong>${v.totalMileage.toLocaleString()}</strong> km</div>
+      <div class="status-dropdown">
+        <div class="status-btn" onclick="setStatus('${v.id}','active')">出車中</div>
+        <div class="status-btn" onclick="setStatus('${v.id}','standby')">待命</div>
+        <div class="status-btn" onclick="setStatus('${v.id}','depot')">在廠</div>
+        <div class="status-btn" onclick="setStatus('${v.id}','rest')">休息</div>
+        <div class="status-btn" onclick="setStatus('${v.id}','repair')">維修</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function setStatus(vid,status){
+  if(vehicles[vid]){
+    vehicles[vid].status=status;
+    renderAll();
+    const statusMap={active:'出車中',standby:'待命',depot:'在廠',rest:'休息',repair:'維修'};
+    showToast(vid + ' → ' + statusMap[status]);
+  }
+}
+
+function renderTable(){
+  const tbody=document.getElementById('recordBody');
+  if(records.length===0){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:#8899aa;padding:30px">資料已自動載入</td></tr>';
+    return;
+  }
+  let sorted=[...records];
+  if(sortCol>=0){
+    const keys=['date','vehicle','task','depart','ret','mileage'];
+    sorted.sort((a,b)=>{
+      let va=a[keys[sortCol]]||'',vb=b[keys[sortCol]]||'';
+      if(sortCol===5){va=parseFloat(va)||0;vb=parseFloat(vb)||0}
+      if(va<vb)return sortAsc?-1:1;
+      if(va>vb)return sortAsc?1:-1;
+      return 0;
+    });
+  }
+  tbody.innerHTML=sorted.map(r=>{
+    const cls=r.incomplete?'incomplete':'';
+    const incompleteTag=r.incomplete?'<span class="tag-incomplete">'+r.missingFields.join(', ')+'</span>':'';
+    return `<tr class="${cls}">
+      <td>${r.date||'-'}</td>
+      <td>${r.vehicle||'-'}${incompleteTag}</td>
+      <td>${r.task||'-'}</td>
+      <td>${r.depart||'-'}</td>
+      <td>${r.ret||'-'}</td>
+      <td>${r.mileage||'-'}</td>
+      <td>${r.incomplete?'<span style="color:#ff6b6b">&#9888; 資料不完整</span>':'<span style="color:#28a745">&#10003;</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function sortTable(col){
+  if(sortCol===col)sortAsc=!sortAsc;
+  else{sortCol=col;sortAsc=true}
+  renderTable();
+}
+
+function renderChart(){
+  const area=document.getElementById('chartArea');
+  if(records.length===0){area.innerHTML='<div style="text-align:center;color:#8899aa;padding:40px">無資料</div>';return}
+  let data={};
+  if(chartMode==='vehicle'){
+    records.forEach(r=>{
+      if(!r.vehicle)return;
+      const m=parseFloat(r.mileage)||0;
+      data[r.vehicle]=(data[r.vehicle]||0)+m;
+    });
+  }else if(chartMode==='task'){
+    records.forEach(r=>{
+      const key=r.task||'未知';
+      const m=parseFloat(r.mileage)||0;
+      data[key]=(data[key]||0)+m;
+    });
+  }else{
+    records.forEach(r=>{
+      if(!r.date)return;
+      const d=r.date.replace(/\//g,'-');
+      let mo=d.substring(0,7);
+      if(/^\d{8}$/.test(d))mo=d.substring(0,4)+'-'+d.substring(4,6);
+      const m=parseFloat(r.mileage)||0;
+      data[mo]=(data[mo]||0)+m;
+    });
+  }
+  const entries=Object.entries(data).sort((a,b)=>b[1]-a[1]);
+  const maxVal=Math.max(...entries.map(e=>e[1]),1);
+  const colors=['#1e90ff','#28a745','#ffc107','#dc3545','#17a2b8','#6f42c1','#fd7e14','#20c997','#e83e8c','#6610f2'];
+  area.innerHTML=entries.map((e,i)=>{
+    const h=Math.max((e[1]/maxVal)*150,4);
+    const c=colors[i%colors.length];
+    return `<div class="chart-bar" style="height:${h}px;background:${c}" title="${e[0]}: ${e[1].toLocaleString()} km">
+      <div class="bar-value">${e[1].toLocaleString()}</div>
+      <div class="bar-label">${e[0]}</div>
+    </div>`;
+  }).join('');
+}
+
+function switchChart(mode,el){
+  chartMode=mode;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  renderChart();
+}
+
+function openAddModal(){document.getElementById('addModal').classList.add('show')}
+function closeAddModal(){document.getElementById('addModal').classList.remove('show')}
+
+function addRecord(){
+  const d=document.getElementById('fDate').value;
+  const v=document.getElementById('fVehicle').value.trim();
+  const t=document.getElementById('fTask').value;
+  const dp=document.getElementById('fDepart').value;
+  const rt=document.getElementById('fReturn').value;
+  const m=document.getElementById('fMileage').value;
+  if(!d||!v){alert('請填寫日期與車輛');return}
+  const r={date:d,vehicle:v,task:t,depart:dp,ret:rt,mileage:m,incomplete:false,missingFields:[]};
+  records.push(r);
+  buildVehicles();
+  renderAll();
+  closeAddModal();
+  ['fDate','fVehicle','fMileage'].forEach(id=>document.getElementById(id).value='');
+  showToast('已新增派遣紀錄');
+}
+
+function exportCSV(){
+  if(records.length===0){alert('無資料可匯出');return}
+  let csv='日期,車輛,任務,出發時間,返回時間,里程\n';
+  records.forEach(r=>{
+    csv+=`${r.date||''},${r.vehicle||''},${r.task||''},${r.depart||''},${r.ret||''},${r.mileage||''}\n`;
+  });
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='MARS-019_'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+  showToast('CSV 已匯出 (' + records.length + ' 筆)');
+}
+
+const BUILTIN_DATA=`日期,車輛,任務,出發時間,返回時間,里程
+2031-01-01,M-2000,地表採樣,00:00-06:00,00:00-06:00,140
+2031-02-02,MX2001,物資盤點,00:00-06:00,00:00-06:00,370
+2031-03-03,M-2002,地表採樣,12:00-18:00,00:00-06:00,399
+2031-04-04,MX2003,設備巡檢,00:00-06:00,06:00-12:00,126
+2031-05-05,M-2004,通訊校準,06:00-12:00,00:00-06:00,291
+2031-06-06,MX2005,溫室維護,00:00-06:00,12:00-18:00,370
+2031-07-07,MX2006,溫室維護,12:00-18:00,06:00-12:00,178
+2031-08-08,M2007,艙外維修,06:00-12:00,06:00-12:00,448
+2031-09-09,M-2008,設備巡檢,06:00-12:00,12:00-18:00,318
+2031-10-10,M2009,地表採樣,06:00-12:00,00:00-06:00,218
+2031-11-11,MX2010,物資盤點,00:00-06:00,12:00-18:00,58
+2031-12-12,M-2011,物資盤點,06:00-12:00,12:00-18:00,50
+2031-01-13,MX2012,溫室維護,00:00-06:00,12:00-18:00,193
+2031-02-14,M2013,艙外維修,00:00-06:00,00:00-06:00,378
+2031-03-15,M-2014,通訊校準,06:00-12:00,00:00-06:00,353
+2031-04-16,M-2015,通訊校準,12:00-18:00,00:00-06:00,348
+2031-05-17,MX2016,地表採樣,12:00-18:00,06:00-12:00,477
+2031-06-18,M2017,設備巡檢,00:00-06:00,06:00-12:00,445
+2031-07-19,MX2018,物資盤點,12:00-18:00,00:00-06:00,105
+2031-08-20,M-2019,地表採樣,12:00-18:00,06:00-12:00,210
+2031-09-21,M-2020,物資盤點,00:00-06:00,12:00-18:00,32
+2031-10-22,M-2021,地表採樣,06:00-12:00,06:00-12:00,408
+2031-11-23,MX2022,通訊校準,00:00-06:00,12:00-18:00,126
+2031-12-24,M2023,溫室維護,00:00-06:00,06:00-12:00,244
+2031-01-25,MX2024,溫室維護,06:00-12:00,00:00-06:00,122
+2031-02-26,MX2025,艙外維修,00:00-06:00,06:00-12:00,343
+2031-03-27,M2026,地表採樣,12:00-18:00,00:00-06:00,384
+2031-04-28,MX2027,艙外維修,06:00-12:00,00:00-06:00,293
+2031-05-01,M-2028,地表採樣,00:00-06:00,12:00-18:00,86
+2031-06-02,M2029,通訊校準,00:00-06:00,06:00-12:00,293
+2031-08-04,M2031,物資盤點,00:00-06:00,06:00-12:00,365
+2031-09-05,M2032,艙外維修,06:00-12:00,06:00-12:00,271
+2031-10-06,M2033,通訊校準,06:00-12:00,06:00-12:00,344
+2031-11-07,M2034,物資盤點,06:00-12:00,06:00-12:00,477
+2031-12-08,M2035,物資盤點,00:00-06:00,06:00-12:00,479
+2031-01-09,M2036,通訊校準,06:00-12:00,00:00-06:00,378
+2031-02-10,MX2037,通訊校準,12:00-18:00,06:00-12:00,217
+2031-03-11,MX2038,溫室維護,00:00-06:00,06:00-12:00,386
+2031-04-12,MX2039,設備巡檢,00:00-06:00,12:00-18:00,234
+2031-05-13,MX2040,設備巡檢,00:00-06:00,00:00-06:00,47
+2031-06-14,MX2041,溫室維護,00:00-06:00,00:00-06:00,88
+2031-07-15,MX2042,艙外維修,06:00-12:00,12:00-18:00,445
+2031-08-16,MX2043,地表採樣,06:00-12:00,12:00-18:00,296
+2031-09-17,MX2044,艙外維修,00:00-06:00,06:00-12:00,435
+2031-10-18,M-2045,物資盤點,06:00-12:00,12:00-18:00,190
+2031-11-19,M-2046,地表採樣,06:00-12:00,00:00-06:00,30
+2031-12-20,M-2047,物資盤點,12:00-18:00,06:00-12:00,134
+2031-01-21,M2048,通訊校準,00:00-06:00,06:00-12:00,131
+2031-02-22,M-2049,艙外維修,06:00-12:00,06:00-12:00,204
+2031-03-23,M-2050,設備巡檢,00:00-06:00,00:00-06:00,270
+2031-04-24,M2051,艙外維修,12:00-18:00,00:00-06:00,38
+2031-05-25,M2052,通訊校準,00:00-06:00,00:00-06:00,357
+2031-06-26,M-2053,地表採樣,00:00-06:00,06:00-12:00,63
+2031-07-27,MX2054,物資盤點,00:00-06:00,00:00-06:00,397
+2031-08-28,M-2055,溫室維護,06:00-12:00,06:00-12:00,182
+2031-09-01,M-2056,艙外維修,00:00-06:00,12:00-18:00,97
+2031-10-02,M2057,地表採樣,00:00-06:00,06:00-12:00,35
+2031-11-03,M-2058,地表採樣,06:00-12:00,06:00-12:00,138
+2031-12-04,M2059,地表採樣,12:00-18:00,06:00-12:00,41
+2031-01-05,M2060,物資盤點,12:00-18:00,00:00-06:00,484
+2031-02-06,MX2061,設備巡檢,06:00-12:00,06:00-12:00,129
+2031-03-07,M-2062,通訊校準,06:00-12:00,06:00-12:00,
+2031-04-08,M-2063,艙外維修,00:00-06:00,00:00-06:00,160
+2031-05-09,M-2064,通訊校準,06:00-12:00,06:00-12:00,266
+2031-06-10,MX2065,艙外維修,06:00-12:00,06:00-12:00,249
+2031-07-11,M2066,地表採樣,00:00-06:00,00:00-06:00,74
+2031-08-12,MX2067,物資盤點,06:00-12:00,12:00-18:00,297
+2031-09-13,MX2068,物資盤點,00:00-06:00,06:00-12:00,389
+2031-10-14,M2069,艙外維修,,00:00-06:00,193
+2031-11-15,MX2070,通訊校準,12:00-18:00,00:00-06:00,231
+2031-12-16,M2071,地表採樣,06:00-12:00,06:00-12:00,180
+2031-01-17,MX2072,地表採樣,06:00-12:00,06:00-12:00,342
+2031-02-18,M2073,物資盤點,00:00-06:00,06:00-12:00,339
+2031-03-19,M2074,通訊校準,00:00-06:00,,350
+2031-04-20,M-2075,溫室維護,06:00-12:00,00:00-06:00,138
+2031-05-21,M-2076,地表採樣,06:00-12:00,06:00-12:00,148
+2031-06-22,M-2077,物資盤點,00:00-06:00,00:00-06:00,111
+2031-07-23,M-2078,溫室維護,06:00-12:00,00:00-06:00,217
+2031-08-24,M2079,溫室維護,00:00-06:00,06:00-12:00,343
+2031-09-25,M-2080,艙外維修,12:00-18:00,00:00-06:00,101
+2031-10-26,M-2081,通訊校準,12:00-18:00,00:00-06:00,15
+2031-11-27,MX2082,地表採樣,12:00-18:00,12:00-18:00,403
+2031-12-28,M2083,通訊校準,06:00-12:00,12:00-18:00,411
+2031-01-01,MX2084,通訊校準,12:00-18:00,12:00-18:00,421
+2031-02-02,M2085,地表採樣,06:00-12:00,06:00-12:00,130
+2031-03-03,M2086,設備巡檢,06:00-12:00,12:00-18:00,329
+2031-04-04,MX2087,地表採樣,06:00-12:00,06:00-12:00,477
+2031-05-05,M-2088,通訊校準,00:00-06:00,00:00-06:00,144
+2031-06-06,M2089,物資盤點,06:00-12:00,06:00-12:00,490
+2031-07-07,M-2090,設備巡檢,12:00-18:00,06:00-12:00,177
+2031-08-08,M-2091,地表採樣,00:00-06:00,06:00-12:00,361
+2031-09-09,M-2092,艙外維修,00:00-06:00,00:00-06:00,317
+2031-10-10,MX2093,地表採樣,06:00-12:00,12:00-18:00,209
+2031-11-11,M2094,設備巡檢,06:00-12:00,00:00-06:00,174
+2031-12-12,M-2095,設備巡檢,06:00-12:00,00:00-06:00,58
+2031-01-13,M-2096,地表採樣,00:00-06:00,06:00-12:00,389
+2031-02-14,M-2097,溫室維護,12:00-18:00,00:00-06:00,270
+2031-03-15,MX2098,物資盤點,06:00-12:00,06:00-12:00,406
+2031-04-16,M2099,艙外維修,12:00-18:00,06:00-12:00,247
+2031-05-17,M-2100,地表採樣,00:00-06:00,12:00-18:00,317
+2031-06-18,MX2101,物資盤點,00:00-06:00,12:00-18:00,337
+2031-07-19,M2102,艙外維修,06:00-12:00,00:00-06:00,230
+2031-08-20,M2103,物資盤點,00:00-06:00,12:00-18:00,35
+2031-09-21,MX2104,地表採樣,12:00-18:00,00:00-06:00,357
+2031-10-22,M2105,物資盤點,06:00-12:00,00:00-06:00,25
+2031-11-23,M-2106,通訊校準,06:00-12:00,06:00-12:00,5
+2031-12-24,M2107,物資盤點,06:00-12:00,12:00-18:00,375
+2031-01-25,M-2108,設備巡檢,06:00-12:00,00:00-06:00,146
+2031-02-26,M-2109,設備巡檢,06:00-12:00,06:00-12:00,326
+2031-03-27,M2110,艙外維修,12:00-18:00,00:00-06:00,337
+2031-04-28,MX2111,艙外維修,06:00-12:00,00:00-06:00,114
+2031-05-01,M-2112,物資盤點,00:00-06:00,06:00-12:00,207
+2031-06-02,M2113,溫室維護,00:00-06:00,12:00-18:00,475
+2031-07-03,MX2114,通訊校準,06:00-12:00,00:00-06:00,354
+2031-08-04,M2115,物資盤點,06:00-12:00,00:00-06:00,202
+2031-09-05,M2116,物資盤點,00:00-06:00,00:00-06:00,301
+2031-10-06,M2117,通訊校準,12:00-18:00,06:00-12:00,403
+2031-11-07,M2118,艙外維修,06:00-12:00,06:00-12:00,196
+2031-12-08,MX2119,艙外維修,06:00-12:00,00:00-06:00,84
+2031-01-09,MX2120,物資盤點,00:00-06:00,12:00-18:00,469
+2031-02-10,MX2121,設備巡檢,06:00-12:00,00:00-06:00,77
+2031-03-11,M2122,設備巡檢,06:00-12:00,06:00-12:00,334
+2031-04-12,MX2123,設備巡檢,12:00-18:00,12:00-18:00,298
+2031-05-13,M2124,通訊校準,06:00-12:00,00:00-06:00,407
+2031-06-14,M2125,,12:00-18:00,12:00-18:00,489
+2031-07-15,M2126,地表採樣,12:00-18:00,06:00-12:00,489
+2031-08-16,M2127,設備巡檢,00:00-06:00,06:00-12:00,291
+2031-09-17,M-2128,設備巡檢,06:00-12:00,,477
+2031-10-18,M-2129,艙外維修,06:00-12:00,06:00-12:00,28`;
+
+function resetData(){
+  parseCSV(BUILTIN_DATA);
+  buildVehicles();
+  renderAll();
+  showToast('資料已重置 (' + records.length + ' 筆)');
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  parseCSV(BUILTIN_DATA);
+  const grid=document.getElementById('vehicleGrid');
+  grid.addEventListener('dragover',e=>{e.preventDefault();grid.style.borderColor='#1e90ff'});
+  grid.addEventListener('dragleave',()=>{grid.style.borderColor=''});
+  grid.addEventListener('drop',e=>{
+    e.preventDefault();grid.style.borderColor='';
+    const file=e.dataTransfer.files[0];
+    if(file&&file.name.endsWith('.csv')){
+      const reader=new FileReader();
+      reader.onload=ev=>{
+        parseCSV(ev.target.result);
+        showToast('CSV 已匯入 (' + records.length + ' 筆)');
+      };
+      reader.readAsText(file,'UTF-8');
+    }
+  });
+});
+</script>
+</body>
+</html>

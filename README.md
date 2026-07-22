@@ -16,8 +16,8 @@
 
 | 檔案 | 說明 |
 |---|---|
-| `vehicle_dispatch.html` | 全部功能，單一檔案（無需 build，開瀏覽器即可） |
+| `index.html` | 全部功能，單一檔案（無需 build，開瀏覽器即可） |
 
 ## 本機開啟
 
-不想用線上版的話，下載 `vehicle_dispatch.html` 後用瀏覽器直接打開就能跑。
+不想用線上版的話，下載 `index.html` 後用瀏覽器直接打開就能跑。
